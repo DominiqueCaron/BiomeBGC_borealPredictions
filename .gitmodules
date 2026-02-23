@@ -1,0 +1,6 @@
+[submodule "modules/BiomeBGC_core"]
+	path = modules/BiomeBGC_core
+	url = https://github.com/PredictiveEcology/BiomeBGC_core
+[submodule "modules/BiomeBGC_dataPrep"]
+	path = modules/BiomeBGC_dataPrep
+	url = https://github.com/PredictiveEcology/BiomeBGC_dataPrep
