@@ -4,15 +4,12 @@
 ###
 ###
 
-repos <- c("predictiveecology.r-universe.dev", getOption("repos"))
-if (!require("SpaDES.project")){
-  Require::Install(c("SpaDES.project", "SpaDES.core", "reproducible"), repos = repos, dependencies = TRUE)
-}
-
-out <- SpaDES.project::setupProject(
+repos <- c("https://predictiveecology.r-universe.dev", getOption("repos"))
+if (!exists("out")){
+  out <- SpaDES.project::setupProject(
   paths = list(projectPath = getwd(),
                inputPath = "~/inputs",
-               outputPath = "outputs",
+               outputPath = file.path("outputs", pars[,"ecoregion"], pars[,"co2scenario"], pars[,"climModel"]),
                cachePath = "cache"),
   options = options(
     repos = c(repos = repos),
@@ -25,35 +22,38 @@ out <- SpaDES.project::setupProject(
     "PredictiveEcology/BiomeBGC_core@main"
   ),
   useGit = FALSE,
-  studyArea = {
-    ecod <- reproducible::prepInputs(
-      url = "https://sis.agr.gc.ca/cansis/nsdb/ecostrat/district/ecodistrict_shp.zip",
-      destinationPath = "inputs",
-      fun = "terra::vect",
-      projectTo = SpaDES.tools::randomStudyArea()
-    )
-    ecod <- ecod[ecod$ECODISTRIC == 935, ]
-    ecod <- terra::buffer(ecod, -250)
-    ecod
-  },
+  studyArea = terra::vect(eco_boreal[eco_boreal$ECOREGION == pars[,"ecoregion"],]),
   rasterToMatch = {
-    targetCRS <- terra::crs(studyArea)
     rtm <- terra::rast(studyArea, res = c(250, 250))
-    terra::crs(rtm) <- targetCRS
+    terra::crs(rtm) <- terra::crs(studyArea)
     rtm[] <- 1
-    rtm <- terra::mask(rtm, studyArea)
+    rtm <- terra::mask(rtm, studyArea, touches = FALSE)
     rtm
   },
   params = list(
     BiomeBGC_dataPrep = list(siteNames = "test",
-                             co2scenario = "RCP85",
-                             climModel = "RCM4"),
-    BiomeBGC_core = list(parallel.cores = 20L,
+                             co2scenario = pars[,"co2scenario"],
+                             climModel = pars[,"climModel"],
+                             savePixelGroupMap = TRUE),
+    BiomeBGC_core = list(parallel.cores = pars[,"cores"],
                          bbgcPath = "biomeBGCtmp",
                          returnDailyEstimates = FALSE,
-                         returnMonthlyEstimates = FALSE)
+                         returnMonthlyEstimates = FALSE,
+                         saveYears = c(2013, 2100))
   )
-)
+  ) } else {
+    out$studyArea = terra::vect(eco_boreal[eco_boreal$ECOREGION == pars[,"ecoregion"],])
+    out$rasterToMatch = {
+      rtm <- terra::rast(out$studyArea, res = c(250, 250))
+      terra::crs(rtm) <- terra::crs(out$studyArea)
+      rtm[] <- 1
+      rtm <- terra::mask(rtm, out$studyArea, touches = FALSE)
+      rtm
+    }
+    out$params$BiomeBGC_dataPrep$climModel <- pars[,"climModel"]
+    out$params$BiomeBGC_dataPrep$co2scenario <- pars[,"co2scenario"]
+    out$paths$outputPath <- file.path("outputs", pars[,"ecoregion"], pars[,"co2scenario"], pars[,"climModel"])
+}
 
 out$loadOrder <- unlist(out$modules)
 
