@@ -1,59 +1,61 @@
-source("fcnt4analysis.R")
+# Get climate data for boreal forest ecodistricts and calculate bioclimatic indices
+
+# load packages and functions
+source("scripts/fcnt4analysis.R")
 library(reproducible)
 library(sf)
-library(rnaturalearth)
-library(ggtern)
+library(data.table)
 
-ecod <- reproducible::prepInputs(
+# extract ecodistricts in the boreal forest
+ecod <- prepInputs(
   url = "https://sis.agr.gc.ca/cansis/nsdb/ecostrat/district/ecodistrict_shp.zip",
   destinationPath = "inputs",
   fun = "sf::st_read"
 )
 
-ecodistricts <- reproducible::prepInputs(
+ecodistricts <- prepInputs(
   url = "https://sis.agr.gc.ca/cansis/nsdb/ecostrat/district/ecodistrict_shp.zip",
   targetFile = "ecodistricts.shp",
   destinationPath = "inputs",
   fun = "sf::st_read"
 )
 
-borealForest <- reproducible::prepInputs(
+borealForest <- prepInputs(
   url = "https://d278fo2rk9arr5.cloudfront.net/downloads/boreal.zip",
   targetFile = "NABoreal.shp",
   destinationPath = "inputs",
   fun = "sf::st_read"
 )
 
-ecodistricts <- sf::st_transform(ecodistricts, 3978)
-borealForest <- sf::st_transform(borealForest, 3978)
+ecodistricts <- st_transform(ecodistricts, 3978)
+borealForest <- st_transform(borealForest, 3978)
 
-ecodistricts <- sf::st_make_valid(ecodistricts)
-borealForest <- sf::st_make_valid(borealForest)
+ecodistricts <- st_make_valid(ecodistricts)
+borealForest <- st_make_valid(borealForest)
 
 borealForest <- st_union(borealForest[
   borealForest$TYPE == "BOREAL" |
     borealForest$TYPE == "B_ALPINE",
 ])
 
-# use this to loop across ecodistricts
-eco_boreal <- sf::st_intersection(ecodistricts, borealForest)
+eco_boreal <- st_intersection(ecodistricts, borealForest)
 
-
+# Define the path to the climate data
 metDataPath <- "~/../Downloads/metdata/metdata/"
 
-
-# Setup the experiment
+# Create a data frame with all combinations of ecodistricts, CO2 scenarios, and climate models
 ecodistricts <- unique(eco_boreal$ECODISTRIC)
 co2scenarios <- c("RCP45", "RCP85")
 climModel <- c("RCM4", "GCM4", "Hadley")
 
-expt_df <- expand.grid(
+run_df <- expand.grid(
   ecodistrict = ecodistricts,
   co2scenario = co2scenarios,
   climModel = climModel
 )
-expt_df <- data.table::setorder(expt_df, ecodistrict, co2scenario)
+run_df <- setorder(run_df, ecodistrict, co2scenario)
 
+# Set up an empty data table to store the results
 out <- data.table(
   year = c(),
   model = c(),
@@ -62,10 +64,12 @@ out <- data.table(
   itmin = c(),
   iphoto = c()
 )
-for (i in 1:nrow(expt_df)) {
-  imodel <- expt_df$climModel[i]
-  iscenario <- expt_df$co2scenario[i]
-  iecodistrict <- expt_df$ecodistrict[i]
+
+# Loop through each combination of ecodistrict, CO2 scenario, and climate model and process the climate data
+for (i in 1:nrow(run_df)) {
+  imodel <- run_df$climModel[i]
+  iscenario <- run_df$co2scenario[i]
+  iecodistrict <- run_df$ecodistrict[i]
 
   metDataFile <- file.path(
     metDataPath,
@@ -112,5 +116,8 @@ for (i in 1:nrow(expt_df)) {
   }
 }
 
-p1 <- mapClimate(out, eco_boreal, scenario = "RCP45")
-p2 <- mapClimaticControl(out, eco_boreal, scenario = "RCP45")
+# create a new folder data/processed if it doesn't exist
+if (!dir.exists("data/processed")) {
+  dir.create("data/processed", recursive = TRUE)
+}
+fwrite(out, "data/processed/climate_bioclimatic_indices.csv")

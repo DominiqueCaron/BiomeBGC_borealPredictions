@@ -142,7 +142,8 @@ usa_map <- ne_countries(country = "United States of America", scale = 10) |>
 lakes <- reproducible::prepInputs(
   url = "https://ftp.maps.canada.ca/pub/nrcan_rncan/vector/canvec/shp/Hydro/canvec_15M_CA_Hydro_shp.zip",
   targetFile = "waterbody_2.shp",
-  projectTo = rtm
+  projectTo = rtm,
+  destinationPath = "inputs",
 )
 lakes <- lakes |> st_union()
 

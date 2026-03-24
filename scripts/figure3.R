@@ -8,7 +8,7 @@
 # f) Map of mean annual precipitation (10-year average 2090-2100). RCP8.5, average 3 scenarios
 
 # Get package and utils we need
-source("fcnt4analysis.R")
+source("scripts/fcnt4analysis.R")
 library(reproducible)
 library(sf)
 library(rnaturalearth)
@@ -17,10 +17,11 @@ library(patchwork)
 library(ggpubr)
 
 # Aggregate meteo data
+climateData <- fread("data/processed/climate_bioclimatic_indices.csv")
 
 # Panel a) and b) maps of the mean temperature and precipitation (10-year average 2000-2010)
 f3ab <- mapClimate(
-  out,
+  climateData,
   eco_boreal,
   yearRange = 2000:2010,
   scenario = "all",
@@ -29,7 +30,7 @@ f3ab <- mapClimate(
 
 # Panel c) and d) maps of the mean temperature and precipitation under RCP4.5 (10-year average 2090-2100)
 f3cd <- mapClimate(
-  out,
+  climateData,
   eco_boreal,
   yearRange = 2090:2100,
   scenario = "RCP45",
@@ -38,7 +39,7 @@ f3cd <- mapClimate(
 
 # Panel e) and f) maps of the mean temperature and precipitation under RCP4.5 (10-year average 2090-2100)
 f3ef <- mapClimate(
-  out,
+  climateData,
   eco_boreal,
   yearRange = 2090:2100,
   scenario = "RCP85",
@@ -78,6 +79,5 @@ precipitation_plot <- col_label_2 /
 
 rowLabels <- rowlabel_1 / rowlabel_2 / rowlabel_3
 
-
 (rowLabels | temperature_plot | precipitation_plot) + plot_layout(width = c(0.1, 1, 1))
-ggsave("climatePlot.png")
+ggsave("figures/climatePlot.png")
