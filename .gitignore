@@ -13,3 +13,4 @@ outputs
 .quarto
 inputs
 modules
+cache
