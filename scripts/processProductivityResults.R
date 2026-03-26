@@ -2,7 +2,7 @@ library(reproducible)
 library(sf)
 library(terra)
 library(data.table)
-source("fcnt4analysis.R")
+source("scripts/fcnt4analysis.R")
 
 ecoregions <- prepInputs(
   url = "https://sis.agr.gc.ca/cansis/nsdb/ecostrat/region/ecoregion_shp.zip",
@@ -10,7 +10,6 @@ ecoregions <- prepInputs(
   destinationPath = "inputs",
   fun = "sf::st_read"
 )
-
 
 borealForest <- prepInputs(
   url = "https://d278fo2rk9arr5.cloudfront.net/downloads/boreal.zip",
@@ -36,47 +35,38 @@ yearRanges <- c(2000:2010, 2090:2100)
 
 outputPath <- "~/../Downloads/outputs/outputs/"
 
-# Setup the experiment
+# Create a data frame with all combinations of CO2 scenarios, and climate models
 ecoregions <- unique(eco_boreal$ECOREGION)
-co2scenarios <- c("RCP45", "RCP85")
-climModel <- c("RCM4", "GCM4", "Hadley")
 
-expt_df <- expand.grid(
-  co2scenario = co2scenarios,
-  climModel = climModel
-)
-
-futureNPPRCM4RCP45 <- combineResults(
+# for each scenario x model, create a raster of NPP over the entire boreal forest
+NPP_RCP45 <- combineResults(
   vars = "daily_npp",
-  ecoregions,
-  outputPath,
-  2090:2100,
-  "RCM4",
-  "RCP45"
-)
-futureNPPGCM4CRP45 <- combineResults(
-  vars = "daily_npp",
-  ecoregions,
-  outputPath,
-  2090:2100,
-  "GCM4",
-  "RCP45"
-)
-futureNPPHadlyRCP45 <- combineResults(
-  vars = "daily_npp",
-  ecoregions,
-  outputPath,
-  2090:2100,
-  "Hadley",
-  "RCP45"
+  ecoregions = ecoregions,
+  outputPath = outputPath,
+  yearRange = 2091:2100,
+  model = c("GCM4", "RCM4", "Hadley"),
+  scenario = "RCP45"
 )
 
-presentNPP <- combineResults(
+NPP_RCP85 <- combineResults(
   vars = "daily_npp",
-  ecoregions,
-  outputPath,
-  2000:2020,
-  "RCM4",
-  "RCP45"
+  ecoregions = ecoregions,
+  outputPath = outputPath,
+  yearRange = 2091:2100,
+  model = c("GCM4", "RCM4", "Hadley"),
+  scenario = "RCP85"
 )
-writeRaster(futureNPP, "futureNPP.tif")
+
+NPP_present <- combineResults(
+  vars = "daily_npp",
+  ecoregions = ecoregions,
+  outputPath = outputPath,
+  yearRange = 2001:2020,
+  model = c("GCM4", "RCM4", "Hadley"),
+  scenario = c("RCP45", "RCP85"),
+  summarize = TRUE
+)
+
+writeRaster(NPP_present, "data/processed/NPP_present.tif", overwrite = TRUE)
+writeRaster(NPP_RCP45, "data/processed/NPP_RCP45.tif", overwrite = TRUE)
+writeRaster(NPP_RCP85, "data/processed/NPP_RCP85.tif", overwrite = TRUE)

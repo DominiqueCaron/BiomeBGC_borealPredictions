@@ -280,53 +280,99 @@ mapClimaticControl <- function(
 }
 
  
-combineResults <- function(
-  vars,
-  ecoregions,
-  outputPath,
-  yearRange,
-  model,
-  scenario
-) {
-  raster_list <- list()
-  for (j in 1:length(ecoregions)) {
-    iecoregion <- ecoregions[j]
-    # define the path were the outputs are
-    folderPath <- file.path(outputPath, iecoregion, scenario, model)
+combineResults <- function(vars, ecoregions, outputPath, yearRange, model, scenario, summarize = FALSE) {
 
-    # check if there are data
-    if (length(list.files(folderPath)) != 0) {
-      # get the raster
-      pixelGroupMap <- rast(file.path(folderPath, "pixelGroupMap.tif"))
+  if (length(model) > 1 | length(scenario) > 1) {
+    # Create a df of model and scenario combinations to loop through
+    runs <- expand.grid(
+      model = model,
+      scenario = scenario
+    )
 
-      # get the data
-      annualAverages <- qs2::qs_read(file.path(folderPath, "annualAverages.qs"))
-
-      # filter years to keep the range
-      yearRangeAvgs <- annualAverages[year %in% yearRange]
-
-      # calculate across-year average
-      yearRangeAvgs <- yearRangeAvgs[,
-        .(value = mean(get(vars))),
-        by = pixelGroup
-      ]
-
-      # Create a lookup vector to switch pixelgroup to the variable of interest
-      max_id <- max(yearRangeAvgs$pixelGroup)
-      lookup <- rep(NA_real_, max_id)
-      lookup[yearRangeAvgs$pixelGroup] <- yearRangeAvgs$value
-
-      # apply lookup
-      rast_value <- app(pixelGroupMap, function(x) lookup[x])
-
-      raster_list[[j]] <- rast_value
+    # Prepare an empty list to store rasters for each run
+    runOut <- list()
+    for (i in 1:nrow(runs)) {
+      message(
+        "Processing model ",
+        runs$model[i],
+        " and scenario ",
+        runs$scenario[i]
+      )
+      runOut[[i]] <- combineResults(
+        vars = vars,
+        ecoregions = ecoregions,
+        outputPath = outputPath,
+        yearRange = yearRange,
+        model = runs$model[i],
+        scenario = runs$scenario[i]
+      )
     }
-  }
-  # remove NULL rasters
-  raster_list <- raster_list[-which(sapply(raster_list, is.null))]
 
-  # combine the rasters
-  outRaster <- mosaic(sprc(raster_list))
+    # align to a template if geometries differ
+    template <- runOut[[1]]
+    aligned <- lapply(runOut, function(r) {
+      if (!terra::compareGeom(r, template, stopOnError = FALSE)) {
+        terra::resample(r, template)
+      } else {
+        r
+      }
+    })
+
+    # make a single SpatRaster (stack)
+    outRaster <- terra::rast(aligned)
+
+    # If summarize is TRUE, calculate the mean across the stack
+    if (summarize) {
+      outRaster <- terra::app(outRaster, mean)
+      names(outRaster) <- paste0(vars, "_", "mean")
+    }
+  } else {
+    raster_list <- list()
+    for (j in 1:length(ecoregions)) {
+      iecoregion <- ecoregions[j]
+      # define the path were the outputs are
+      folderPath <- file.path(outputPath, iecoregion, scenario, model)
+
+      # check if there are data
+      if (length(list.files(folderPath)) != 0) {
+        # get the raster
+        pixelGroupMap <- rast(file.path(folderPath, "pixelGroupMap.tif"))
+
+        # get the data
+        annualAverages <- qs2::qs_read(file.path(
+          folderPath,
+          "annualAverages.qs"
+        ))
+
+        # filter years to keep the range
+        yearRangeAvgs <- annualAverages[year %in% yearRange]
+
+        # calculate across-year average
+        yearRangeAvgs <- yearRangeAvgs[,
+          .(value = mean(get(vars))),
+          by = pixelGroup
+        ]
+
+        # Create a lookup vector to switch pixelgroup to the variable of interest
+        max_id <- max(yearRangeAvgs$pixelGroup)
+        lookup <- rep(NA_real_, max_id)
+        lookup[yearRangeAvgs$pixelGroup] <- yearRangeAvgs$value
+
+        # apply lookup
+        rast_value <- app(pixelGroupMap, function(x) lookup[x])
+
+        raster_list[[j]] <- rast_value
+      }
+    }
+    # remove NULL rasters
+    raster_list <- raster_list[-which(sapply(raster_list, is.null))]
+
+    # combine the rasters
+    outRaster <- mosaic(sprc(raster_list))
+
+    # add metadata to the raster
+    names(outRaster) <- paste0(vars, "_", model, "_", scenario)
+  }
 
   return(outRaster)
 }
