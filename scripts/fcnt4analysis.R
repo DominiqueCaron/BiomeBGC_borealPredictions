@@ -64,7 +64,7 @@ mapClimate <- function(
   }
   # Keep years we want to plot
   dt <- dt[year %in% yearRange, ]
-  
+
   dt <- dt[,
     .(tmin = mean(tmin), prcp = mean(prcp)),
     by = .(ecodistrict)
@@ -77,8 +77,8 @@ mapClimate <- function(
     sf::st_transform(crs(polygons))
 
   # some setup
-  xlims <- c(-2339839, 3010580)
-  ylims <- c(-725354.2, 3000000)
+ xlims <- c(-2339839, 3010580)
+ ylims <- c(-200000, 3000000)
 
   basemap <- ggplot() +
     geom_sf(data = canada, fill = "white") +
@@ -106,7 +106,7 @@ mapClimate <- function(
       labels = c("-20°C", "-10°C", "0°C", "10°C")
     ) +
     scale_colour_distiller(
-     name = NULL,
+      name = NULL,
       palette = "RdYlBu",
       limits = c(-20, 10),
       breaks = c(-20, -10, 0, 10),
@@ -207,7 +207,7 @@ mapClimaticControl <- function(
 
   # some setup
   xlims <- c(-2339839, 56e5)
-  ylims <- c(-725354.2, 3000000)
+  ylims <- c(-200000, 3000000)
 
   basemap <- ggplot() +
     geom_sf(data = canada, fill = "white") +
@@ -225,7 +225,14 @@ mapClimaticControl <- function(
     by.y = "ecodistrict"
   )
   # generate a color key
-  tric <- Tricolore(sfObj, "iphoto", "itmin", "ivpd", breaks = Inf, show_data = FALSE)
+  tric <- Tricolore(
+    sfObj,
+    "iphoto",
+    "itmin",
+    "ivpd",
+    breaks = Inf,
+    show_data = FALSE
+  )
   sfObj$rgb <- tric$rgb
 
   # map
@@ -236,12 +243,12 @@ mapClimaticControl <- function(
     scale_colour_identity("")
 
   # add ternary plot
- legendGrob <- ggplotGrob(
+  legendGrob <- ggplotGrob(
     tric$key +
       geom_point(data = sfObj, aes(iphoto, itmin, ivpd), size = 0.3) +
       labs(
         x = "Light\nlimited",
-        y = "Temp.\nlimited",       # shorter label reduces clipping risk
+        y = "Temp.\nlimited", # shorter label reduces clipping risk
         z = "Water\nlimited"
       ) +
       theme_transparent() +
@@ -250,9 +257,9 @@ mapClimaticControl <- function(
         tern.axis.title.L = element_text(size = 8),
         tern.axis.title.R = element_text(size = 8),
         tern.axis.title.T = element_text(size = 8),
-        tern.axis.text.L  = element_blank(),
-        tern.axis.text.R  = element_blank(),
-        tern.axis.text.T  = element_blank(),
+        tern.axis.text.L = element_blank(),
+        tern.axis.text.R = element_blank(),
+        tern.axis.text.T = element_blank(),
         tern.axis.arrow.L = element_blank(),
         tern.axis.arrow.R = element_blank(),
         tern.axis.arrow.T = element_blank(),
@@ -267,21 +274,30 @@ mapClimaticControl <- function(
   )
 
   # Disable clipping so labels outside the grob boundary are not cut off
-  legendGrob$layout$clip[legendGrob$layout$name=="panel"] <- "off"
+  legendGrob$layout$clip[legendGrob$layout$name == "panel"] <- "off"
 
   mapOut <- map_climControl +
     annotation_custom(
       legendGrob,
-      xmin = 22e5, xmax = 60e5,
-      ymin = -10e5, ymax = 30e5   
+      xmin = 22e5,
+      xmax = 60e5,
+      ymin = -10e5,
+      ymax = 30e5
     )
 
   return(mapOut)
 }
 
- 
-combineResults <- function(vars, ecoregions, outputPath, yearRange, model, scenario, summarize = FALSE) {
 
+combineResults <- function(
+  vars,
+  ecoregions,
+  outputPath,
+  yearRange,
+  model,
+  scenario,
+  summarize = FALSE
+) {
   if (length(model) > 1 | length(scenario) > 1) {
     # Create a df of model and scenario combinations to loop through
     runs <- expand.grid(
@@ -337,7 +353,7 @@ combineResults <- function(vars, ecoregions, outputPath, yearRange, model, scena
       if (length(list.files(folderPath)) != 0) {
         # get the raster
         pixelGroupMap <- rast(file.path(folderPath, "pixelGroupMap.tif"))
-
+        browser()
         # get the data
         annualAverages <- qs2::qs_read(file.path(
           folderPath,
@@ -375,4 +391,122 @@ combineResults <- function(vars, ecoregions, outputPath, yearRange, model, scena
   }
 
   return(outRaster)
+}
+
+plotNPP <- function(nppRaster) {
+  if (nlyr(nppRaster) > 1) {
+    nppRaster <- app(nppRaster, mean)
+  }
+
+  # convert kgC/m2/day to gC/m2/yr
+  nppRaster <- nppRaster * 365 * 1000
+
+  # get data for a base map
+  canada <- ne_countries(country = "canada", scale = 10) |>
+    sf::st_transform(crs(nppRaster))
+  usa <- ne_countries(country = "United States of America", scale = 10) |>
+    sf::st_transform(crs(nppRaster))
+
+  # some setup
+ xlims <- c(-2339839, 3010580)
+ ylims <- c(-200000, 3000000)
+
+  basemap <- ggplot() +
+    geom_sf(data = usa, fill = "grey95", color = NA) +
+    geom_sf(data = canada, fill = "grey95", color = NA)
+
+  npp_plot <- basemap +
+    geom_spatraster(
+      data = nppRaster,
+      aes(fill = !!sym(names(nppRaster)[1])),
+      show.legend = TRUE
+    ) +
+    coord_sf(xlim = xlims, ylim = ylims, expand = FALSE) +
+    scale_fill_distiller(
+      name = "NPP (gC/m²/yr)",
+      palette = "YlGn",
+      direction = 1,
+      limits = c(0, 800),
+      oob = scales::squish,
+      breaks = c(0, 200, 400, 600, 800),
+      labels = c("0", "200", "400", "600", "800"),
+      na.value = "transparent"
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      panel.background = element_rect(fill = "lightblue1", color = NA),
+      panel.grid = element_line(color = "#00000010"),
+      axis.title = element_blank(),
+      axis.text = element_blank(),
+      axis.ticks = element_blank()
+    )
+
+  return(npp_plot)
+}
+
+
+plotNPPchange <- function(present, future) {
+  if (nlyr(present) > 1) {
+    present <- app(present, mean)
+  }
+  if (nlyr(future) > 1) {
+    future <- app(future, mean)
+  }
+
+  # convert kgC/m2/day to gC/m2/yr
+  present <- present * 365 * 1000
+  future <- future * 365 * 1000
+
+if (!identical(crs(present), crs(future))) {
+  future <- terra::project(future, crs(present))
+}
+# align geometry (extent/resolution/rows/cols)
+if (!terra::compareGeom(present, future, stopOnError = FALSE)) {
+  future <- terra::resample(future, present, method = "bilinear")
+}
+
+  # calculate difference
+  npp_diff <- future - present
+
+  # get data for a base map
+  canada <- ne_countries(country = "canada", scale = 10) |>
+    sf::st_transform(crs(npp_diff))
+  usa <- ne_countries(country = "United States of America", scale = 10) |>
+    sf::st_transform(crs(npp_diff))
+
+  # some setup
+ xlims <- c(-2339839, 3010580)
+ ylims <- c(-200000, 3000000)
+  
+  basemap <- ggplot() +
+    geom_sf(data = usa, fill = "grey95", color = NA) +
+    geom_sf(data = canada, fill = "grey95", color = NA)
+
+  npp_plot <- basemap +
+    geom_spatraster(
+      data = npp_diff,
+      aes(fill = !!sym(names(npp_diff)[1])),
+      show.legend = TRUE
+    ) +
+    coord_sf(xlim = xlims, ylim = ylims, expand = FALSE) +
+    scale_fill_distiller(
+      name = expression(Delta * " NPP (gC/m²/yr)"),
+      palette = "RdYlGn",
+      direction = 1,
+      limits = c(-400, 400),
+      oob = scales::squish,
+      breaks = c(-400, -200, 0, 200, 400),
+      labels = c("-400", "-200", "0", "200", "400"),
+      na.value = "transparent"
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      panel.background = element_rect(fill = "lightblue1", color = NA),
+      panel.grid = element_line(color = "#00000010"),
+      axis.title = element_blank(),
+      axis.text = element_blank(),
+      axis.ticks = element_blank()
+    )
+
+  return(npp_plot)
 }
