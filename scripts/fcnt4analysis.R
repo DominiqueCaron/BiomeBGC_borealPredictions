@@ -510,3 +510,52 @@ if (!terra::compareGeom(present, future, stopOnError = FALSE)) {
 
   return(npp_plot)
 }
+
+plotValidationMetrics <- function(
+  dt,
+  estimateName = "GPP",
+  metric = "R2"
+) {
+
+  # some metric-specific formatting
+  optimValue <- ifelse(metric == "R2", 1, 0)
+  xLab <- ifelse(metric == "R2", "R²", ifelse(metric == "RMSE", "RMSE (gC/m²/day)", "Relative bias (%)"))
+
+  xLims <- range(dt[, get(metric)], na.rm = TRUE)
+  xLims[1] <- min(xLims[1], optimValue)
+  xLims[2] <- max(xLims[2], optimValue)
+
+  dt <- dt[estimate != estimateName, ]
+
+p <- ggplot(dt, aes(y = towerName, x = get(metric))) +
+  geom_point(color = "steelblue4", size = 2.5) +
+  geom_vline(
+    xintercept = optimValue,
+    color = "black",
+    linetype = "dashed",
+    linewidth = 0.4
+  ) +
+  scale_x_continuous(
+    limits = xLims,
+    n.breaks = 6,
+    expand = expansion(mult = 0.02)
+  ) +
+  scale_y_discrete(limits=rev) +
+  theme_minimal(base_size = 12) + 
+  theme(
+    axis.title.y = element_blank(),
+    axis.text.y = element_text(size = 9, colour = "black"),
+    axis.text.x = element_text(size = 10, colour = "black"),
+    axis.title.x = element_text(size = 11),
+    panel.grid.major.y = element_line(color = "#00000020"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(color = "#00000020"),
+    panel.border = element_rect(fill = NA, color = "black", size = 0.4),
+    plot.title = element_text(size = 13, face = "bold", hjust = 0),
+    plot.caption = element_text(size = 8),
+    plot.margin = margin(5, 10, 5, 5)
+  ) +
+  labs(x = xLab)
+
+return(p)
+}
