@@ -550,7 +550,7 @@ p <- ggplot(dt, aes(y = towerName, x = get(metric))) +
     panel.grid.major.y = element_line(color = "#00000020"),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_line(color = "#00000020"),
-    panel.border = element_rect(fill = NA, color = "black", size = 0.4),
+    panel.border = element_rect(fill = NA, color = "black", linewidth = 0.4),
     plot.title = element_text(size = 13, face = "bold", hjust = 0),
     plot.caption = element_text(size = 8),
     plot.margin = margin(5, 10, 5, 5)

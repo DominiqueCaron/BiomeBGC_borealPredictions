@@ -10,6 +10,7 @@ library(ggplot2)
 library(data.table)
 library(patchwork)
 library(ggpubr)
+source("scripts/fcnt4analysis.R")
 
 towerName <- c(
   "CA-Gro",
