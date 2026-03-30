@@ -525,7 +525,7 @@ plotValidationMetrics <- function(
   xLims[1] <- min(xLims[1], optimValue)
   xLims[2] <- max(xLims[2], optimValue)
 
-  dt <- dt[estimate != estimateName, ]
+  dt <- dt[estimate == estimateName, ]
 
 p <- ggplot(dt, aes(y = towerName, x = get(metric))) +
   geom_point(color = "steelblue4", size = 2.5) +
