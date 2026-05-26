@@ -44,7 +44,7 @@ rtm <- terra::mask(rtm, terra::vect(studyArea))
 
 # dominant species
 dominantSpecies <- reproducible::prepInputs(
-  url = "https://opendata.nfis.org/downloads/forest_change/CA_Tree_Species_Classification_2020.zip",
+  url = "https://opendata.nfis.org/downloads/forest_change/CA_Tree_Species_Classification_2015.zip",
   destinationPath = "~/inputs"
 )
 dominantSpecies <- reproducible::cropTo(dominantSpecies, rtm) |>
@@ -79,7 +79,6 @@ levels(dominantSpecies) <- cls
 lat <- c(
   48.2167,
   68.3203,
-  55.1119,
   55.880,
   55.8792,
   55.9058,
@@ -96,7 +95,6 @@ lat <- c(
 lon <- c(
   -82.1556,
   -133.5188,
-  -122.8414,
   -98.481,
   -98.4839,
   -98.5247,
@@ -113,7 +111,6 @@ lon <- c(
 towerName <- c(
   "CA-Gro",
   "CA-HPC",
-  "CA-LP1",
   "CA-Man",
   "CA-NS1",
   "CA-NS2",

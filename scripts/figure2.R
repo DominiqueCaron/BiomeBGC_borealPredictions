@@ -69,3 +69,37 @@ rowlabel_1 + p2a + p2b + p2c + rowlabel_2 + p2d + p2e + p2f +
         axis.ticks = element_blank())
 
 ggsave("figures/validationMetrics.png", scale = 1)
+
+# Alternative figure 2: Show correlation of annual GPP, RECO, and NEE
+# create an empty data.frame to store the results
+results <- data.frame(
+  towerName = character(),
+  estimate = character(),
+  towerMean = numeric(),
+  BGCMean = numeric()
+)
+# loop through each tower and calculate the metrics
+for (tower in towerName) {
+  for (estimate in c("GPP", "NEE", "RECO")){
+    dataPath <- file.path(validationOutputDir, tower, "BiomeBGC_validationFluxTower", estimate, "annualComparison.csv")
+    annualAverages <- fread(dataPath)
+    if(nrow(annualAverages) > 0){
+    results <- rbind(results,
+      data.frame(
+        towerName = tower,
+        estimate = estimate, 
+        towerMean = annualAverages$fluxTower,
+        BGCMean = annualAverages$BBGC
+      )
+    )
+    }
+  }
+}
+results <- results[results$estimate != "NEE",]
+results2 <- results[results$towerName != "CA-LP1",]
+ggplot(results2) +
+  geom_point(aes(x = towerMean, y = BGCMean, col = towerName)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed")+
+  scale_x_continuous(limits = c(0,1500)) +
+  scale_y_continuous(limits = c(0,1500)) +
+  facet_wrap(.~estimate, scales = "free")
