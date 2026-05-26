@@ -4,44 +4,38 @@ library(terra)
 library(data.table)
 source("scripts/fcnt4analysis.R")
 
-ecoregions <- prepInputs(
-  url = "https://sis.agr.gc.ca/cansis/nsdb/ecostrat/region/ecoregion_shp.zip",
-  targetFile = "ecoregions.shp",
-  destinationPath = "inputs",
-  fun = "sf::st_read"
-)
+ecoprovinces <- reproducible::prepInputs(url = "https://sis.agr.gc.ca/cansis/nsdb/ecostrat/province/ecoprovince_shp.zip",
+                                         targetFile = "ecoprovinces.shp",
+                                         destinationPath = "inputs",
+                                         fun = "sf::st_read")
 
-borealForest <- prepInputs(
-  url = "https://d278fo2rk9arr5.cloudfront.net/downloads/boreal.zip",
-  targetFile = "NABoreal.shp",
-  destinationPath = "inputs",
-  fun = "sf::st_read"
-)
+borealForest <- reproducible::prepInputs(url = "https://d278fo2rk9arr5.cloudfront.net/downloads/boreal.zip",
+                                         targetFile = "NABoreal.shp",
+                                         destinationPath = "inputs",
+                                         fun = "sf::st_read")
 
-ecoregions <- st_transform(ecoregions, 3978)
-borealForest <- st_transform(borealForest, 3978)
+ecoprovinces <- sf::st_transform(ecoprovinces, 3978)
+borealForest <- sf::st_transform(borealForest, 3978)
 
-ecoregions <- st_make_valid(ecoregions)
-borealForest <- st_make_valid(borealForest)
+ecoprovinces <- sf::st_make_valid(ecoprovinces)
+borealForest <- sf::st_make_valid(borealForest)
 
-borealForest <- st_union(borealForest[
-  borealForest$TYPE == "BOREAL" | borealForest$TYPE == "B_ALPINE",
-])
+borealForest <- sf::st_union(borealForest[borealForest$TYPE == "BOREAL" | borealForest$TYPE == "B_ALPINE", ])
 
 # use this to loop across ecoregions
-eco_boreal <- st_intersection(ecoregions, borealForest)
+eco_boreal <- st_intersection(ecoprovinces, borealForest)
 
 yearRanges <- c(2000:2010, 2090:2100)
 
 outputPath <- "~/../Downloads/outputs/outputs/"
 
 # Create a data frame with all combinations of CO2 scenarios, and climate models
-ecoregions <- unique(eco_boreal$ECOREGION)
+ecoprovinces <- unique(eco_boreal$ECOPROVINC)
 
 # for each scenario x model, create a raster of NPP over the entire boreal forest
 NPP_RCP45 <- combineResults(
   vars = "daily_npp",
-  ecoregions = ecoregions,
+  ecoregions = ecoprovinces,
   outputPath = outputPath,
   yearRange = 2091:2100,
   model = c("GCM4", "RCM4", "Hadley"),
@@ -50,7 +44,7 @@ NPP_RCP45 <- combineResults(
 
 NPP_RCP85 <- combineResults(
   vars = "daily_npp",
-  ecoregions = ecoregions,
+  ecoregions = ecoprovinces,
   outputPath = outputPath,
   yearRange = 2091:2100,
   model = c("GCM4", "RCM4", "Hadley"),
