@@ -41,7 +41,7 @@ borealForest <- st_union(borealForest[
 eco_boreal <- st_intersection(ecodistricts, borealForest)
 
 # Define the path to the climate data
-metDataPath <- "~/../Downloads/metdata/metdata/"
+metDataPath <- "~/inputs/metdata/"
 
 # Create a data frame with all combinations of ecodistricts, CO2 scenarios, and climate models
 ecodistricts <- unique(eco_boreal$ECODISTRIC)
@@ -70,34 +70,35 @@ for (i in 1:nrow(run_df)) {
   imodel <- run_df$climModel[i]
   iscenario <- run_df$co2scenario[i]
   iecodistrict <- run_df$ecodistrict[i]
-
+  
   metDataFile <- file.path(
     metDataPath,
     tolower(
-      paste0(iecodistrict, "_", imodel, iscenario, "_", "19732100.mtc43")
+      paste0(iecodistrict, "_", imodel, iscenario, "_", "19752100.mtc43")
     )
   )
   if (file.exists(metDataFile)) {
     metData <- try(metRead(metDataFile) |> as.data.table(), silent = TRUE)
     if (inherits(metData, "data.table")) {
-      metData <- metData[year %in% c(2000:2010, 2090:2100)]
-
+      metData <- metData[year %in% c(2000:2020, 2080:2100)]
+      
       # calculate bioclimatic index
       metData$ivpd <- iVPD(metData$vpd)
       metData$itmin <- iTmin(metData$tmin)
       metData$iphoto <- iPhoto(metData$daylen / 3600)
-
+      
       metData <- metData[,
-        .(
-          tmin = mean(tmin),
-          prcp = sum(prcp),
-          ivpd = sum(ivpd),
-          itmin = sum(itmin),
-          iphoto = sum(iphoto)
-        ),
-        by = .(year)
+                         .(
+                           tmin = mean(tmin),
+                           vpd = mean(vpd),
+                           prcp = sum(prcp),
+                           ivpd = sum(ivpd),
+                           itmin = sum(itmin),
+                           iphoto = sum(iphoto)
+                         ),
+                         by = .(year)
       ]
-
+      
       out <- rbind(
         out,
         data.table(
@@ -106,6 +107,7 @@ for (i in 1:nrow(run_df)) {
           model = imodel,
           scenario = iscenario,
           tmin = metData$tmin,
+          vpd = metData$vpd,
           prcp = metData$prcp,
           ivpd = metData$ivpd,
           itmin = metData$itmin,
